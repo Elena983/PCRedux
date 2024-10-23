@@ -53,7 +53,7 @@
 #' par(default.par)
 #' @export hookreg
 
-hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005, CI.level = 0.999, 
+hookreg_strict <- function(x, y, normalize = TRUE, sig.level = 0.0005, CI.level = 0.999, 
                            hook_drop_threshold = 0.20, robust = FALSE) {
     # Remove NA values
     data <- na.omit(data.frame(x = x, y = y))
@@ -108,13 +108,13 @@ hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005, CI.level = 0.999
             TRUE, FALSE
         )
         
-        // Significance test on p-value
+        # Significance test on p-value
         res_hook_significance <- ifelse(res_lm_fit_summary < sig.level, TRUE, FALSE)
         
-        // Final decision based on stricter criteria
+        # Final decision based on stricter criteria
         dec_hook <- ifelse(res_hook_significance == TRUE || res_lm_fit_confint_decision == TRUE, TRUE, FALSE)
         
-        // Return the results
+        # Return the results
         res_hookreg <- c(
             res_lm_fit_coefficients[[1]], res_lm_fit_coefficients[[2]], 
             max_y_cycle, hook_delta, res_lm_fit_summary, 
@@ -122,11 +122,11 @@ hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005, CI.level = 0.999
             res_hook_significance, res_lm_fit_confint_decision, dec_hook
         )
     } else {
-        // Return default values if no hook is detected
+        # Return default values if no hook is detected
         res_hookreg <- c(0, 0, 0, 0, NA, NA, NA, FALSE, FALSE, FALSE)
     }
     
-    // Name the result fields
+    # Name the result fields
     names(res_hookreg) <- c("intercept", "slope", "hook.start", "hook.delta", "p.value", 
                             "CI.low", "CI.up", "hook.fit", "hook.CI", "hook")
     return(res_hookreg)
