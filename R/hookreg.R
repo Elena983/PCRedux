@@ -54,7 +54,7 @@
 #' @export hookreg
 
 hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005, 
-                           CI.level = 0.999, hook_drop_threshold = 0.20, 
+                           CI.level = 0.9975, hook_drop_threshold = 0.20, 
                            robust = FALSE) {
     # Remove NA values
     data <- na.omit(data.frame(x = x, y = y))
@@ -78,7 +78,7 @@ hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005,
     
     # Calculate hook delta in terms of cycles
     if (!is.na(hook_drop_index)) {
-        hook_delta <- hook_drop_index - max_y_cycle + 1
+        hook_delta <- hook_drop_index - max_y_cycle + 1  # +1 for index adjustment
     } else {
         hook_delta <- NA
     }
@@ -93,25 +93,26 @@ hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005,
             res_lm_fit <- try(lm(y[range] ~ x[range]), silent = TRUE)
         }
         
+        # Extract regression results if the fit was successful
         if (inherits(res_lm_fit, "try-error")) {
             return(rep(NA, 10))
         }
         
-        res_lm_fit_summary <- summary(res_lm_fit)$coefficients[2, 4]
+        res_lm_fit_summary <- summary(res_lm_fit)$coefficients[2, 4]  # p-value for slope
         res_lm_fit_coefficients <- coefficients(res_lm_fit)
-        res_lm_fit_confint <- confint(res_lm_fit, level = CI.level)
+        res_lm_fit_confint <- confint(res_lm_fit, level = CI.level)  # confidence intervals
         
-        # Ensure the confidence intervals are below -0.85
-        res_lm_fit_confint_decision <- !is.na(res_lm_fit_confint[2, 1]) &&
-            res_lm_fit_confint[2, 1] < -0.85 &&
-            res_lm_fit_confint[2, 2] < -0.85
-        
-        # Significance test on p-value
+        # Check if the slope is significantly negative
         res_hook_significance <- !is.na(res_lm_fit_summary) && 
             res_lm_fit_summary < sig.level
         
-        # Final decision based on stricter criteria
-        dec_hook <- res_hook_significance || res_lm_fit_confint_decision
+        # Apply stricter check: Ensure both confidence intervals for the slope are below 0
+        res_lm_fit_confint_decision <- !is.na(res_lm_fit_confint[2, 1]) &&
+            res_lm_fit_confint[2, 1] < 0 &&
+            res_lm_fit_confint[2, 2] < 0
+        
+        # Final decision based on criteria
+        dec_hook <- res_hook_significance && res_lm_fit_confint_decision
         
         # Return the results
         res_hookreg <- c(
