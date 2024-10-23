@@ -53,68 +53,68 @@
 #' par(default.par)
 #' @export hookreg
 
-hookreg <- function(x, y, normalize=TRUE, sig.level=0.0025, CI.level=0.9975, robust=FALSE) {
-  # Remove missing values from data
-  data <- na.omit(data.frame(x = x, y = y))
-  x <- data[, "x"]
-  y <- data[, "y"]
-
-  # Quantile Normaliation of amplification data
-  if (normalize) {
-    y <- y / quantile(y, 0.999)
-  }
-
-  # narrow the range of the potential hook region by a 75% quantile
-  # filter
-  hook_quantile_range <- which(y >= quantile(y, c(0.75)))[1]:length(y)
-
-  # narrow the range of the potential hook region by a 75% quantile
-  # filter
-  hook_max_range <- which(y == max(y[hook_quantile_range]))[1]
-
-  # Determine putative hook range
-  range <- hook_max_range:length(x)
-
-  hook_delta <- length(hook_max_range:length(x))
-
-  if (hook_max_range < length(x) && hook_delta >= 5) {
-    # Regression for putative hook range
-    if (robust) {
-      res_lm_fit <- try(lmrob(y[range] ~ x[range]), silent = TRUE)
-    } else {
-      res_lm_fit <- try(lm(y[range] ~ x[range]), silent = TRUE)
+hookreg_strict <- function(x, y, normalize = TRUE, sig.level = 0.0005, CI.level = 0.999, 
+                           min_hook_delta = 8, robust = FALSE) {
+    # Remove NA values
+    data <- na.omit(data.frame(x = x, y = y))
+    x <- data[, "x"]
+    y <- data[, "y"]
+    
+    # Normalize the y values if required
+    if (normalize) {
+        y <- y / quantile(y, 0.999)
     }
-
-    # Statistics for regression
-    res_lm_fit_summary <- try(summary(res_lm_fit))$coefficients[2, 4]
-    res_lm_fit_coefficients <- coefficients(res_lm_fit)
-    res_lm_fit_confint <- confint(res_lm_fit, level = CI.level)
-    res_hook_significance <- ifelse(res_lm_fit_summary < sig.level, TRUE, FALSE)
-    res_lm_fit_confint_decision <- ifelse(res_lm_fit_confint[2, 1] < 0 &&
-      res_lm_fit_confint[2, 2] < 0,
-    TRUE, FALSE
-    )
-    dec_hook <- ifelse(res_hook_significance == TRUE || res_lm_fit_confint_decision == TRUE, TRUE, FALSE)
-
-    res_hookreg <- c(
-      res_lm_fit_coefficients[[1]],
-      res_lm_fit_coefficients[[2]],
-      hook_max_range,
-      hook_delta,
-      res_lm_fit_summary,
-      res_lm_fit_confint[2, 1],
-      res_lm_fit_confint[2, 2],
-      res_hook_significance,
-      res_lm_fit_confint_decision,
-      dec_hook
-    )
-  } else {
-    #     res_hookreg <- c(NA, NA, NA, NA, NA, NA, NA, FALSE, FALSE, FALSE)
-    res_hookreg <- c(0, 0, 0, 0, NA, NA, NA, FALSE, FALSE, FALSE)
-  }
-  names(res_hookreg) <- c(
-    "intercept", "slope", "hook.start", "hook.delta", "p.value",
-    "CI.low", "CI.up", "hook.fit", "hook.CI", "hook"
-  )
-  res_hookreg
+    
+    # Define the range starting from the point where y is in the top 25% of its values
+    hook_quantile_range <- which(y >= quantile(y, c(0.75)))[1]:length(y)
+    hook_max_range <- which(y == max(y[hook_quantile_range]))[1]
+    range <- hook_max_range:length(x)
+    hook_delta <- length(range)
+    
+    # Check if the range is long enough for meaningful analysis
+    if (hook_max_range < length(x) && hook_delta >= min_hook_delta) {
+        # Perform robust or regular linear regression on the selected range
+        if (robust) {
+            res_lm_fit <- try(lmrob(y[range] ~ x[range]), silent = TRUE)
+        } else {
+            res_lm_fit <- try(lm(y[range] ~ x[range]), silent = TRUE)
+        }
+        
+        # Extract regression results if the fit was successful
+        if (inherits(res_lm_fit, "try-error")) {
+            return(rep(NA, 10))
+        }
+        
+        res_lm_fit_summary <- summary(res_lm_fit)$coefficients[2, 4]  # p-value for slope
+        res_lm_fit_coefficients <- coefficients(res_lm_fit)
+        res_lm_fit_confint <- confint(res_lm_fit, level = CI.level)  # confidence intervals
+        
+        # Apply stricter check: Ensure both confidence intervals are below 0 and even below -0.85
+        res_lm_fit_confint_decision <- ifelse(
+          res_lm_fit_confint[2, 1] < -0.85 && res_lm_fit_confint[2, 2] < -0.85, 
+          TRUE, FALSE
+        )
+        
+        # Significance test on p-value
+        res_hook_significance <- ifelse(res_lm_fit_summary < sig.level, TRUE, FALSE)
+        
+        # Final decision based on stricter criteria
+        dec_hook <- ifelse(res_hook_significance == TRUE || res_lm_fit_confint_decision == TRUE, TRUE, FALSE)
+        
+        # Return the results
+        res_hookreg <- c(
+            res_lm_fit_coefficients[[1]], res_lm_fit_coefficients[[2]], 
+            hook_max_range, hook_delta, res_lm_fit_summary, 
+            res_lm_fit_confint[2, 1], res_lm_fit_confint[2, 2], 
+            res_hook_significance, res_lm_fit_confint_decision, dec_hook
+        )
+    } else {
+        # Return default values if no hook is detected
+        res_hookreg <- c(0, 0, 0, 0, NA, NA, NA, FALSE, FALSE, FALSE)
+    }
+    
+    # Name the result fields
+    names(res_hookreg) <- c("intercept", "slope", "hook.start", "hook.delta", "p.value", 
+                            "CI.low", "CI.up", "hook.fit", "hook.CI", "hook")
+    return(res_hookreg)
 }
