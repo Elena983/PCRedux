@@ -38,36 +38,43 @@
 #' @rdname hookregNL
 #' @export hookregNL
 
-hookregNL <- function(x, y, plot=FALSE, level=0.999, simple=TRUE, manualtrim=5) {
-  # Create data, remove missing values and first 'manualtrim' cycles
+ookregNL <- function(x, y, plot=FALSE, level=0.995, simple=TRUE, manualtrim=5) {
+  # Create data, remove missing values (manualtrim) and remove first 5 cycles to
+  # avoid fitting baseline slopes.
+  
   data <- na.omit(data.frame(cycles = x, fluo = y))
   data <- data[-(1:manualtrim), ]
   
-  # Fit a 6-parameter log-logistic model
+  # fit a 6-parameter log-logistic model
   fit <- try(pcrfit(data, 1, 2, l6), silent = TRUE)
   l6 <- NULL
-  if (inherits(fit, "try-error")) {
-    message("Fitting failed.")
-    return(data.frame(slope = NA, CI.low = NA, CI.up = NA, hook = 0))
+  if (inherits_error(fit)) {
+    message("fitting failed.")
   }
   
-  # Optionally plot the fit
-  if (plot) plot(fit)
+  if (plot && !inherits_error(fit)) plot(fit)
   
   # Confidence interval for slope parameter 'k'
-  slope <- coefficients(fit)[6]
-  confslope <- try(stats::confint(fit, level = level)[6, ], silent = TRUE)
-  if (inherits(confslope, "try-error")) {
+  if (inherits_error(fit)) {
+    slope <- NA
     confslope <- c(NA, NA)
     message("Could not calculate confidence interval.")
+  } else {
+    slope <- coefficients(fit)[6]
+    confslope <- try(stats::confint(fit, level = level)[6, ], silent = TRUE)
+    if (inherits_error(confslope)) {
+      confslope <- c(NA, NA)
+    }
   }
   
-  # Decision: Hook detection based on stricter confidence interval criteria
-  hook <- if (!is.na(confslope[1]) &&
-              confslope[1] < -0.85 && confslope[2] < -0.85) {
+  # Decision
+  hook <- if(!is.na(confslope[1]) &&
+             confslope[1] < 0 &&
+             confslope[2] < 0 &&
+             !inherits_error(fit)) {
     1
-  } else {
-    0
+  }  else {
+    0 
   }
   
   confslope_simple <- if (!is.na(confslope[1])) {
@@ -76,11 +83,11 @@ hookregNL <- function(x, y, plot=FALSE, level=0.999, simple=TRUE, manualtrim=5) 
     data.frame(CI.low = NA, CI.up = NA)
   }
   
-  # Output: return either simple results or full model details
+  # Output
   if (simple) {
-    res <- data.frame(slope = slope, CI.low = confslope_simple[[1]], CI.up = confslope_simple[[2]], hook = hook)
+    res <- data.frame(slope = slope[[1]], CI.low = confslope_simple[[1]], CI.up = confslope_simple[[2]], hook = hook)
   } else {
     res <- list(fit = fit, slope = slope, conf = confslope, hook = hook)
   }
-  return(res)
+  res
 }
