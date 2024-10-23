@@ -38,7 +38,7 @@
 #' @rdname hookregNL
 #' @export hookregNL
 
-ookregNL <- function(x, y, plot=FALSE, level=0.995, simple=TRUE, manualtrim=5) {
+hookregNL <- function(x, y, plot=FALSE, level=0.995, simple=TRUE, manualtrim=5) {
   # Create data, remove missing values (manualtrim) and remove first 5 cycles to
   # avoid fitting baseline slopes.
   
