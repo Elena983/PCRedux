@@ -38,7 +38,7 @@
 #' @rdname hookregNL
 #' @export hookregNL
 
-hookregNL_strict <- function(x, y, plot=FALSE, level=0.999, simple=TRUE, manualtrim=5) {
+hookregNL <- function(x, y, plot=FALSE, level=0.999, simple=TRUE, manualtrim=5) {
   # Create data, remove missing values and first 'manualtrim' cycles
   data <- na.omit(data.frame(cycles = x, fluo = y))
   data <- data[-(1:manualtrim), ]
