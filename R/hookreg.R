@@ -53,8 +53,9 @@
 #' par(default.par)
 #' @export hookreg
 
-hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005, CI.level = 0.999, 
-                           hook_drop_threshold = 0.20, robust = FALSE) {
+hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005, 
+                           CI.level = 0.999, hook_drop_threshold = 0.20, 
+                           robust = FALSE) {
     # Remove NA values
     data <- na.omit(data.frame(x = x, y = y))
     x <- data[, "x"]
@@ -77,14 +78,13 @@ hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005, CI.level = 0.999
     
     # Calculate hook delta in terms of cycles
     if (!is.na(hook_drop_index)) {
-        hook_delta <- hook_drop_index - max_y_cycle + 1  # +1 for the index adjustment
+        hook_delta <- hook_drop_index - max_y_cycle + 1
     } else {
         hook_delta <- NA
     }
     
     # Check if a valid hook was detected based on the defined threshold
     if (!is.na(hook_delta) && hook_delta > 0) {
-        # Perform robust or regular linear regression on the selected range
         range <- max_y_cycle:(max_y_cycle + hook_delta - 1)
         
         if (robust) {
@@ -93,28 +93,23 @@ hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005, CI.level = 0.999
             res_lm_fit <- try(lm(y[range] ~ x[range]), silent = TRUE)
         }
         
-        # Extract regression results if the fit was successful
         if (inherits(res_lm_fit, "try-error")) {
             return(rep(NA, 10))
         }
         
-        res_lm_fit_summary <- summary(res_lm_fit)$coefficients[2, 4]  # p-value for slope
+        res_lm_fit_summary <- summary(res_lm_fit)$coefficients[2, 4]
         res_lm_fit_coefficients <- coefficients(res_lm_fit)
-        res_lm_fit_confint <- confint(res_lm_fit, level = CI.level)  # confidence intervals
+        res_lm_fit_confint <- confint(res_lm_fit, level = CI.level)
         
-        # Apply stricter check: Ensure both confidence intervals are below 0 and even below -0.85
         res_lm_fit_confint_decision <- ifelse(
             res_lm_fit_confint[2, 1] < -0.85 && res_lm_fit_confint[2, 2] < -0.85, 
             TRUE, FALSE
         )
         
-        # Significance test on p-value
         res_hook_significance <- ifelse(res_lm_fit_summary < sig.level, TRUE, FALSE)
         
-        # Final decision based on stricter criteria
-        dec_hook <- ifelse(res_hook_significance == TRUE || res_lm_fit_confint_decision == TRUE, TRUE, FALSE)
+        dec_hook <- ifelse(res_hook_significance || res_lm_fit_confint_decision, TRUE, FALSE)
         
-        # Return the results
         res_hookreg <- c(
             res_lm_fit_coefficients[[1]], res_lm_fit_coefficients[[2]], 
             max_y_cycle, hook_delta, res_lm_fit_summary, 
@@ -122,12 +117,10 @@ hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005, CI.level = 0.999
             res_hook_significance, res_lm_fit_confint_decision, dec_hook
         )
     } else {
-        # Return default values if no hook is detected
         res_hookreg <- c(0, 0, 0, 0, NA, NA, NA, FALSE, FALSE, FALSE)
     }
     
-    # Name the result fields
-    names(res_hookreg) <- c("intercept", "slope", "hook.start", "hook.delta", "p.value", 
-                            "CI.low", "CI.up", "hook.fit", "hook.CI", "hook")
+    names(res_hookreg) <- c("intercept", "slope", "hook.start", "hook.delta", 
+                             "p.value", "CI.low", "CI.up", "hook.fit", "hook.CI", "hook")
     return(res_hookreg)
 }
