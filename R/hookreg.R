@@ -67,7 +67,7 @@ hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005,
     }
     
     # Find the maximum y value and its corresponding cycle
-    max_y <- max(y)
+    max_y <- max(y, na.rm = TRUE)
     max_y_cycle <- which(y == max_y)[1]
     
     # Define the threshold for hook detection based on max signal
@@ -101,15 +101,19 @@ hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005,
         res_lm_fit_coefficients <- coefficients(res_lm_fit)
         res_lm_fit_confint <- confint(res_lm_fit, level = CI.level)
         
-        res_lm_fit_confint_decision <- ifelse(
-            res_lm_fit_confint[2, 1] < -0.85 && res_lm_fit_confint[2, 2] < -0.85, 
-            TRUE, FALSE
-        )
+        # Ensure the confidence intervals are below -0.85
+        res_lm_fit_confint_decision <- !is.na(res_lm_fit_confint[2, 1]) &&
+            res_lm_fit_confint[2, 1] < -0.85 &&
+            res_lm_fit_confint[2, 2] < -0.85
         
-        res_hook_significance <- ifelse(res_lm_fit_summary < sig.level, TRUE, FALSE)
+        # Significance test on p-value
+        res_hook_significance <- !is.na(res_lm_fit_summary) && 
+            res_lm_fit_summary < sig.level
         
-        dec_hook <- ifelse(res_hook_significance || res_lm_fit_confint_decision, TRUE, FALSE)
+        # Final decision based on stricter criteria
+        dec_hook <- res_hook_significance || res_lm_fit_confint_decision
         
+        # Return the results
         res_hookreg <- c(
             res_lm_fit_coefficients[[1]], res_lm_fit_coefficients[[2]], 
             max_y_cycle, hook_delta, res_lm_fit_summary, 
@@ -117,9 +121,11 @@ hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005,
             res_hook_significance, res_lm_fit_confint_decision, dec_hook
         )
     } else {
+        # Return default values if no hook is detected
         res_hookreg <- c(0, 0, 0, 0, NA, NA, NA, FALSE, FALSE, FALSE)
     }
     
+    # Name the result fields
     names(res_hookreg) <- c("intercept", "slope", "hook.start", "hook.delta", 
                              "p.value", "CI.low", "CI.up", "hook.fit", "hook.CI", "hook")
     return(res_hookreg)
