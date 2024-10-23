@@ -53,7 +53,7 @@
 #' par(default.par)
 #' @export hookreg
 
-hookreg_strict <- function(x, y, normalize = TRUE, sig.level = 0.0005, CI.level = 0.999, 
+hookreg <- function(x, y, normalize = TRUE, sig.level = 0.0005, CI.level = 0.999, 
                            hook_drop_threshold = 0.20, robust = FALSE) {
     # Remove NA values
     data <- na.omit(data.frame(x = x, y = y))
